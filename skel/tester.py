@@ -7,7 +7,7 @@ import sensor
 import random
 import sys
 
-DEBUG = False
+DEBUG = True
 
 class Tester:
     """ Class containing the tests, each test uses a Manager instance 
@@ -68,6 +68,7 @@ class Tester:
             if DEBUG:
                 print "asked", asked
                 print "total", totalReqCH
+                print "\n"
             
             phases.append(phase) 
         
@@ -83,7 +84,6 @@ class Tester:
         else: print "Passed"
         
     def test1(self):
-        
         numClusters = 10
         maxNodesPerCluster = 10
         numSteps = 3
@@ -94,7 +94,7 @@ class Tester:
         dr = random.Random()
         dr.seed(seed)
         delays = [random.uniform(0,0.05) for i in range(100)]
-        Sensor.setDelayRange(delays)
+        sensor.setDelayRange(delays)
         self.simpleTest(testIndex, seed, numClusters, maxNodesPerCluster, 
                     numSteps, numReqRange, numValReqRange) 
 

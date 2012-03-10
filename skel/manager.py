@@ -6,8 +6,8 @@ import threading, random, copy
 from sensor import *
 from node import *
 
-#DEBUG = True
-DEBUG = False
+DEBUG = True
+#DEBUG = False
 
 class Manager:
 
@@ -123,6 +123,8 @@ class Manager:
             a list of cluster heads and the aggregated data type (e.g. temperature) 
             For example: [ [[x1,[ch1,ch2],temp], [y1,[ch3,ch4]]], [[x2,[ch3,ch1],temp]]]
         """
+        if DEBUG:
+                print "Intru in manager.runTest\n"
         self.tester = tester
         
         #reinitialize test related variables
@@ -150,8 +152,11 @@ class Manager:
             requests = phases[i]
             self.recvResults = {}
             self.numResponses = 0
-            
+                
             for req in requests:
+                print req[0]
+                print " catre "
+                print req[1]
                 req[0].getAggregatedData(req[1], req[2])
 
             activatedThreads = 0
@@ -166,7 +171,9 @@ class Manager:
             # wait for results
             while self.numResponses < len(requests): 
                 continue
-            
+            if DEBUG:
+                    print "Am primit toate rezultatele de la noduri\n"
+
             # verify results
             errorString = ""
             testResults =   self.getCorrectResults(self.clusters, requests) 
