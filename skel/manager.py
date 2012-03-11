@@ -154,9 +154,6 @@ class Manager:
             self.numResponses = 0
                 
             for req in requests:
-                print req[0]
-                print " catre "
-                print req[1]
                 req[0].getAggregatedData(req[1], req[2])
 
             activatedThreads = 0
@@ -188,7 +185,7 @@ class Manager:
                                                         results[node][1], testResults[node][0], testResults[node][1])
                             break
                     else: 
-                        errorString = "Invalid data structure type for results, it must be 'tuple' not %s" % type(results[res])
+                        errorString = "Invalid data structure type for results, it must be 'tuple' not %s" % type(results[node])
                         break
             else: errorString = "Incorrect number of aggregation results in phase %d %d!=%d"%(i,len(results), len(testResults)) 
           
