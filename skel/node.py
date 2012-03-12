@@ -33,6 +33,10 @@ class Node(threading.Thread):
         self.responseReceived = False
         self.parentIsCluster = False
         self.reqReceived = False
+        self.die = False
+        self.tuplu = ()
+        self.reqClusters = {}
+        self.sensor_type = None
         
         
     def getNodeID(self):
@@ -47,7 +51,7 @@ class Node(threading.Thread):
     def getClusterHead(self):
         return self.clusterHead
 
-    def receiveResponseFromCluster(sensor, tuplu):
+    def receiveResponseFromCluster(self, tuplu):
         self.tuplu = tuplu
         self.responseReceived = True
 
@@ -60,7 +64,7 @@ class Node(threading.Thread):
     def replyToCluster(self):
         sensor = self.sensors[self.sensor_type]
         value = sensor.getValue()
-        print self.name + " intorc " + str(value)
+        print self.name + " intorc " + str(value) + "\n"
         self.parent.receiveResponseFromNode(value)
         self.manager.notify_resp_node2cluster(self, self.parent, self.sensor_type)
 
@@ -72,9 +76,11 @@ class Node(threading.Thread):
                 self.tuplu[0] = minim
         if maxim > self.tuplu[1]:
                 self.tuplu[1] = maxim
+        print self.name + " intorc la manager" + str(self.tuplu) + "\n"
         self.manager.submitResponse(self, self.tuplu)
    
     def forwardToCluster(self):
+        print self.name + " forward to " + str(self.reqClusters)
         self.clusterHead.requestNodeToCluster(self, self.reqClusters, self.sensor_type)
         self.manager.notify_req_node2cluster(self, self.clusterHead, self.sensor_type)
         
@@ -93,18 +99,22 @@ class Node(threading.Thread):
                         if self.parentIsCluster == True:
                                 self.replyToCluster() 
                                 self.parentIsCluster = False
-                        self.reqReceived = False;
+                        self.init_values()
+                        self.manager.nextPhase()
+                if (self.die == True):
+                        break
                 continue
         print "Exit thread " + str(self.nodeID) + "\n"
 
     def getAggregatedData(self, clusters, sensor_type):
-            if sensor_type == None:
-                self.manager.nextPhase()
-            print "\n" + self.name + "primeste cerere de la manage\n"
-            self.reqClusters = clusters
-            self.sensor_type = sensor_type
-            self.parentIsManager = True
-            self.reqReceived = True
+            if (sensor_type != None):
+                    print "\n" + self.name + "primeste cerere de la manager\n"
+                    self.reqClusters = clusters
+                    self.sensor_type = sensor_type
+                    self.parentIsManager = True
+                    self.reqReceived = True
+            else:
+                    self.die = True
 
 class ClusterHead(threading.Thread):
     """
@@ -129,12 +139,15 @@ class ClusterHead(threading.Thread):
         self.parentIsCluster = False
         self.parentIsNode = False
         self.reqReceived = False
+        self.die = False
 
+        self.sensor_type = None
         self.responses = 0
         self.reqClusters = {};
         self.destNodes = {};
         self.destClusters = {};
         self.results = [];
+        self.value = None
         self.tuples = []
         self.responseLock = threading.Lock()
 
@@ -179,10 +192,10 @@ class ClusterHead(threading.Thread):
         self.reqReceived = True
 
     def forwardRequestToClusters(self):
-        print self.name + " dau la clustere\n"
         self.destClusters = self.reqClusters;
         if (self in self.reqClusters):
                 self.destClusters.remove(self)
+        print self.name + " la clustere " + str(self.destClusters) + "\n"
 
         if self.destClusters:
                 for cluster in self.destClusters:
@@ -191,13 +204,14 @@ class ClusterHead(threading.Thread):
                         self.manager.notify_req_cluster2cluster(self, cluster, self.sensor_type)
         
 
-    def forwardRequestToNodes(self, managerNodeId):
-            print self.name + " dau la nodurile mele\n"
-            destNodes = self.getClusterNodes()
-            destNodes.remove(self)
-            if managerNodeId != -1:
-                destNodes.remove(managerNodeId)
-            for node in destNodes:
+    def forwardRequestToNodes(self, managerNode):
+            self.destNodes = self.getClusterNodes()
+            if self in self.destNodes:
+                self.destNodes.remove(self)
+            if managerNode != None:
+                self.destNodes.remove(managerNode)
+            print self.name + " dau la nodurile mele " + str(self.destNodes)
+            for node in self.destNodes:
                 #apeleaza functia de request pt node
                 node.requestClusterToNode(self, self.sensor_type)
                 self.manager.notify_req_cluster2node(self, node, self.sensor_type)
@@ -205,9 +219,14 @@ class ClusterHead(threading.Thread):
     # Calculate the final results per Cluster Head
     def aggregateResults(self):
         properSensor = self.sensors[self.sensor_type]
-        if (self in self.reqClusters):
-                minim = properSensor.getValue;
-        else:   minim = DEFAULT_MIN_VALUE
+        if (self.parentIsCluster == True):
+                minim = properSensor.getValue();
+                print self.name + " intoarce sil sil " + str(minim) + "\n"
+        else:   
+                if (self in self.reqClusters):
+                        minim = properSensor.getValue();
+                        print self.name + " intoarce sil sil " + str(minim) + "\n"
+                else:   minim = DEFAULT_MIN_VALUE
         maxim = minim;
         for result in self.results:
                 if minim == DEFAULT_MIN_VALUE:
@@ -228,10 +247,10 @@ class ClusterHead(threading.Thread):
                 if tuplu[1] > maxim:
                         maxim = tuplu[1]
         self.value = (minim, maxim)
-        print self.name + " intoarce " + str(self.value) + "\n"
 
 
     def forwardResponse(self):
+        print self.name + " intorc " + str(self.value) + "\n"
         if self.parentIsCluster:
                 self.parent.receiveResponseFromCluster(self.value)
                 self.manager.notify_resp_cluster2cluster(self, self.parent, self.sensor_type)
@@ -240,7 +259,7 @@ class ClusterHead(threading.Thread):
                 self.manager.submitResponse(self, self.value)
                 self.parentIsManager = False
         if self.parentIsNode:
-                self.parent.receiveResponseFromCLuser(self.value)
+                self.parent.receiveResponseFromCluster(self.value)
                 self.manager.notify_resp_cluster2node(self, self.parent, self.sensor_type)
                 self.parentIsNode = False
 
@@ -255,35 +274,36 @@ class ClusterHead(threading.Thread):
                         # Decide how to forward to own nodes
                         if self in self.reqClusters:
                                 if self.parentIsNode == True:
-                                        forwardRequestToNodes(self.parent.getNodeID)
+                                        self.forwardRequestToNodes(self.parent)
                                 if self.parentIsManager == True:
-                                        forwardRequestToNodes(-1)
+                                        self.forwardRequestToNodes(None)
 
                         if self.parentIsCluster == True:
-                                self.forwardRequestToNodes(-1)
+                                self.forwardRequestToNodes(None)
 
                         if (self.parentIsCluster == False):
                                 self.forwardRequestToClusters()
 
                         #wait for all the nodes and clusters to respond
                         leng =  len(self.destNodes) + len(self.destClusters)
-                        print "Trebuie sa astept dupa " + str(leng)
-                        while (self.responses < len(self.destNodes) + len(self.destClusters)):
+                        while (self.responses < leng):
                                 continue
-
                         self.aggregateResults()
                         self.forwardResponse()
-
-                        self.reqReceived = False;
+                        self.init_values()
+                        self.manager.nextPhase()
+                if (self.die == True):
+                        break
                 continue
 
         print "Exit thread " + str(self.nodeID) + "\n"
 
     def getAggregatedData(self, clusters, sensor_type):
-            if sensor_type == None:
-                self.manager.nextPhase()
-            print "\n" + self.name + " primesc cerere de la manager\n"
-            self.reqClusters = clusters
-            self.sensor_type = sensor_type
-            self.parentIsManager = True
-            self.reqReceived = True
+            if (sensor_type != None):
+                    print "\n" + self.name + " primesc cerere de la manager\n"
+                    self.reqClusters = clusters
+                    self.sensor_type = sensor_type
+                    self.parentIsManager = True
+                    self.reqReceived = True
+            else:
+                    self.die = True

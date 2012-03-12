@@ -6,8 +6,8 @@ import threading, random, copy
 from sensor import *
 from node import *
 
-DEBUG = True
-#DEBUG = False
+#DEBUG = True
+DEBUG = False
 
 class Manager:
 
@@ -137,6 +137,7 @@ class Manager:
             node.start()
 
         for i in range(len(phases)):
+            print "PHASE", i,"---------------\n"
             if DEBUG:
                 print "PHASE", i
                 for req in phases[i]:
@@ -268,7 +269,7 @@ class Manager:
 
         if DEBUG:
             self.printLock.acquire()
-            print "Registered node", node.getNodeID(), node
+            #print "Registered node", node.getNodeID(), node
             self.printLock.release()
 
     def registerClusterHead(self, node):
@@ -295,7 +296,7 @@ class Manager:
 
         if DEBUG:
             self.printLock.acquire()
-            print "Registered cluster head", node.getNodeID(), node
+            #print "Registered cluster head", node.getNodeID(), node
             self.printLock.release()
                 
     def notify_req_node2cluster(self, node, cluster, sensorType):
