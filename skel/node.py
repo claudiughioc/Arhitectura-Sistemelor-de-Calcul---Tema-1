@@ -69,13 +69,14 @@ class Node(threading.Thread):
         self.manager.notify_resp_node2cluster(self, self.parent, self.sensor_type)
 
     def replyToManager(self):
-        sensor = self.sensors[self.sensor_type]
-        minim = sensor.getValue()
-        maxim = minim
-        if minim < self.tuplu[0]:
-                self.tuplu[0] = minim
-        if maxim > self.tuplu[1]:
-                self.tuplu[1] = maxim
+        if (self.getClusterHead in self.reqClusters):
+                sensor = self.sensors[self.sensor_type]
+                minim = sensor.getValue()
+                maxim = minim
+                if minim < self.tuplu[0]:
+                        self.tuplu[0] = minim
+                if maxim > self.tuplu[1]:
+                        self.tuplu[1] = maxim
         print self.name + " intorc la manager" + str(self.tuplu) + "\n"
         self.manager.submitResponse(self, self.tuplu)
    
@@ -268,7 +269,7 @@ class ClusterHead(threading.Thread):
     def run(self):
         self.manager.registerClusterHead(self)
         self.init_values()
-        self.name = "Cluster " + str(self.nodeID)
+        self.name = "Clustera " + str(self.nodeID)
         while (1):
                 if self.reqReceived == True:
                         # Decide how to forward to own nodes
