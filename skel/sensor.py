@@ -6,7 +6,7 @@ from threading import *
 import time
 import random
 
-SENSOR_TYPES = {"TEMP":0, "LIGHT":1}
+SENSOR_TYPES = {"TEMP":0, "LIGHT":1, "PRESSURE":2, "HUMIDITY":3, "DISTANCE":4}
 TEMP_RANGE = range(-40,55,1)
 DELAY_RANGE =  [round(x/1000.0,3) for x in range (0, 200, 1)] # delay intre 0 si 0.2 secunde, round nu functioneaza
 
@@ -51,3 +51,5 @@ class Sensor:
 
         if self.sensorType == SENSOR_TYPES["TEMP"]:
             self.value = self.randGen.choice(TEMP_RANGE)
+        else:
+            self.value = self.randGen.randint(0, 100)

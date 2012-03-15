@@ -1,7 +1,3 @@
-"""
-	ASC TEMA 1
-"""
-
 import threading, random, copy
 from sensor import *
 from node import *
@@ -37,14 +33,23 @@ class Manager:
         self.chThreads = {}
         self.recvResults = {}
  
-    def generateSensors(self, numSensors):
+    def generateSensors(self, numNodes, minSensorsPerNode, maxSensorsPerNode):
         """ Randomly generates sensor data. 
-            @param numSensors: the number of sensors
-            @return:  a list of Sensor objects 
+            @param numNodes: the number of nodes for which to generate sensors
+            @param minSensorsPerNode: the minimum number of sensors that can be randomly generated for a node
+            @param maxSensorsPerNode: the number of sensors that can be randomly generated for a node
+            @return:  a list of lists of Sensor objects (one list of Sensors per node)
         """
         sensors = []
-        for i in range(numSensors):
-            sensor = Sensor(self.randGen.random()) #randomly generate the sensors' seeds
+        for i in range(numNodes):
+            sensor = []
+            for j in range(self.randGen.randint(minSensorsPerNode, maxSensorsPerNode) + 1):
+                type = self.randGen.randint(0, maxSensorsPerNode - 1)
+                for s in sensor:
+                    if s.getType() == type:
+                        break
+                else:
+                    sensor.append(Sensor(self.randGen.random(), type)) #randomly generate the sensors' seeds
             sensors.append(sensor)
         return sensors
 
@@ -60,13 +65,13 @@ class Manager:
       
         # create clusterHead node 
         chID = clusterHeadID+firstID 
-        clusterHead = ClusterHead(nodeID = chID, sensors = [sensors[clusterHeadID]], manager = self)
+        clusterHead = ClusterHead(nodeID = chID, sensors = sensors[clusterHeadID], manager = self)
         
         # create nodes and associate them to the CH
         nodes = [] 
         for i in range(len(sensors)):
             if i != clusterHeadID:
-                node = Node (nodeID = i + firstID, sensors = [sensors[i]], manager = self)
+                node = Node (nodeID = i + firstID, sensors = sensors[i], manager = self)
                 node.setClusterHead(clusterHead)
                 nodes.append(node)
             else: nodes.append(clusterHead)
@@ -76,7 +81,7 @@ class Manager:
         return nodes
 
 
-    def generateCluster(self, numNodes, clusterHeadID, firstID):
+    def generateCluster(self, numNodes, clusterHeadID, firstID, minSensorsPerNode, maxSensorsPerNode):
         """
             Creates a cluster of sensor nodes.
             @param numNodes: the number of nodes per cluster
@@ -85,12 +90,12 @@ class Manager:
             @param firstID: the nodes' identifiers are based on this parameter
             @return: a list of Node objects
         """
-        sensors = self.generateSensors(numNodes)
+        sensors = self.generateSensors(numNodes, minSensorsPerNode, maxSensorsPerNode)
         nodes = self.generateNodes(sensors, firstID, clusterHeadID)
         return nodes
 
 
-    def generateOverlay(self, numClusters, maxNodesPerCluster):
+    def generateOverlay(self, numClusters, maxNodesPerCluster, minSensorsPerNode = 1, maxSensorsPerNode = 1):
         """
             Randomly generates an overlay.
             @param numClusters: number of clusters
@@ -110,7 +115,7 @@ class Manager:
         for i in range(numClusters):
             nodes = self.generateCluster(nodesCluster[i], 
                             self.randGen.randint(0, nodesCluster[i]-1), 
-                            numNodes)
+                            numNodes, minSensorsPerNode, maxSensorsPerNode)
             numNodes = numNodes + nodesCluster[i]
             self.clusters.append(nodes)
             self.nodes.extend(nodes)
@@ -123,8 +128,6 @@ class Manager:
             a list of cluster heads and the aggregated data type (e.g. temperature) 
             For example: [ [[x1,[ch1,ch2],temp], [y1,[ch3,ch4]]], [[x2,[ch3,ch1],temp]]]
         """
-        if DEBUG:
-                print "Intru in manager.runTest\n"
         self.tester = tester
         
         #reinitialize test related variables
@@ -137,7 +140,6 @@ class Manager:
             node.start()
 
         for i in range(len(phases)):
-            print "PHASE", i,"---------------\n"
             if DEBUG:
                 print "PHASE", i
                 for req in phases[i]:
@@ -153,7 +155,7 @@ class Manager:
             requests = phases[i]
             self.recvResults = {}
             self.numResponses = 0
-                
+            
             for req in requests:
                 req[0].getAggregatedData(req[1], req[2])
 
@@ -169,9 +171,7 @@ class Manager:
             # wait for results
             while self.numResponses < len(requests): 
                 continue
-            if DEBUG:
-                    print "Am primit toate rezultatele de la noduri\n"
-
+            
             # verify results
             errorString = ""
             testResults =   self.getCorrectResults(self.clusters, requests) 
@@ -208,7 +208,7 @@ class Manager:
 
     def submitResponse(self, node, results):
         """
-            Receives a list of aggregation results from a queried node and appends it to the
+            Receives a tuple, representing the aggregation results from a queried node, and appends it to the
             other results received during the current aggregation phase
             @param node: the node queried by the Manager during the current test phase
             @param results: a tuple with MIN and MAX aggregates for the requested list of clusters
@@ -238,10 +238,9 @@ class Manager:
                     for sensor in node.getSensors():
                         if sensor.getType() == req[2]:
                             value = sensor.getValue()
+                            if value < minValue: minValue = value
+                            if value > maxValue: maxValue = value
                             break
-                    if value < minValue: minValue = value
-                    if value > maxValue: 
-                        maxValue = value
             
             results[req[0].getNodeID()] = (minValue, maxValue)
         return results
@@ -256,9 +255,9 @@ class Manager:
         errorString = "" 
         self.registerNodeLock.acquire()
         if t in self.nThreads:
-            errorString = "Thread " + str(t) + " is already running for node " + str(nThreads[t].getNodeID())
+            errorString = "Thread " + str(t) + " is already running for node " + str(self.nThreads[t].getNodeID())
         elif node in self.nThreads.values():
-            errorString = "Node " + str(nThreads[t].getNodeID()) + " already has a running thread: " + str(t)
+            errorString = "Node " + str(self.nThreads[t].getNodeID()) + " already has a running thread: " + str(t)
         else: 
             self.nThreads[t] = node
 
@@ -269,7 +268,7 @@ class Manager:
 
         if DEBUG:
             self.printLock.acquire()
-            #print "Registered node", node.getNodeID(), node
+            print "Registered node", node.getNodeID(), node
             self.printLock.release()
 
     def registerClusterHead(self, node):
@@ -283,9 +282,9 @@ class Manager:
         
         self.registerCHLock.acquire() 
         if t in self.chThreads:
-            errorString += "\nThread " + str(t) + " is already running for cluster head node " + str(chThreads[t].getNodeID())
+            errorString += "\nThread " + str(t) + " is already running for cluster head node " + str(self.chThreads[t].getNodeID())
         elif node in self.chThreads.values():
-            errorString += "\nCluster Head " + str(ch[t].getNodeID()) + " already has a running thread: " + str(t)
+            errorString += "\nCluster Head " + str(self.chThreads[t].getNodeID()) + " already has a running thread: " + str(t)
         else: 
             self.chThreads[t] = node
 
@@ -296,7 +295,7 @@ class Manager:
 
         if DEBUG:
             self.printLock.acquire()
-            #print "Registered cluster head", node.getNodeID(), node
+            print "Registered cluster head", node.getNodeID(), node
             self.printLock.release()
                 
     def notify_req_node2cluster(self, node, cluster, sensorType):
