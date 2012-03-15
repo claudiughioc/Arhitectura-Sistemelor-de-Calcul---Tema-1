@@ -219,6 +219,7 @@ class ClusterHead(threading.Thread):
 
     # Calculate the final results per Cluster Head
     def aggregateResults(self):
+        """
         properSensor = self.sensors[self.sensor_type]
         if (self.parentIsCluster == True):
                 minim = properSensor.getValue();
@@ -228,7 +229,9 @@ class ClusterHead(threading.Thread):
                         minim = properSensor.getValue();
                         print self.name + " intoarce sil sil " + str(minim) + "\n"
                 else:   minim = DEFAULT_MIN_VALUE
-        maxim = minim;
+                        """
+        minim = DEFAULT_MIN_VALUE
+        maxim = minim
         for result in self.results:
                 if minim == DEFAULT_MIN_VALUE:
                         minim = result
