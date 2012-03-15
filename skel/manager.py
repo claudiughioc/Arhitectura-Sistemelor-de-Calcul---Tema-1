@@ -140,6 +140,7 @@ class Manager:
             node.start()
 
         for i in range(len(phases)):
+            print "PHASE", i
             if DEBUG:
                 print "PHASE", i
                 for req in phases[i]:
