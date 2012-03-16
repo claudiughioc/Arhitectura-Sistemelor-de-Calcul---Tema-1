@@ -7,6 +7,7 @@ import manager, sensor
 
 DEBUG = True
 DEFAULT_MIN_VALUE = 0
+inf = 1e5000
 
 class Node(threading.Thread):
     """
@@ -62,28 +63,34 @@ class Node(threading.Thread):
         self.reqReceived = True
 
     def replyToCluster(self):
-        value = None
+        value = (-inf, inf)
         for i in self.sensors:
                 if i == self.sensor_type:
-                        value = self.sensors[i].getValue()
-        #print self.name + " intorc " + str(value) + "\n"
-        self.parent.receiveResponseFromNode(value)
-        self.manager.notify_resp_node2cluster(self, self.parent, self.sensor_type)
+			val = self.sensors[i].getValue()
+                        value = (val, val)
+	print self.name + " intorc " + str(value) + "\n"
+        self.parent.receiveResponse(value)
+        self.manager.notify_resp_node2cluster(self, self.parent, value)
 
     def replyToManager(self):
         if (self.getClusterHead in self.reqClusters):
-                sensor = self.sensors[self.sensor_type]
-                minim = sensor.getValue()
-                maxim = minim
-                if minim < self.tuplu[0]:
-                        self.tuplu[0] = minim
-                if maxim > self.tuplu[1]:
-                        self.tuplu[1] = maxim
-        #print self.name + " intorc la manager" + str(self.tuplu) + "\n"
+		value = (-inf, inf)
+		for i in self.sensors:
+			if i == self.sensor_type:
+				val = self.sensors[i].getValue()
+				value = (val, val)
+		minim = value[0]
+		maxim = value[1]
+		if (maxim != inf):
+	                if minim < self.tuplu[0]:
+        	                self.tuplu[0] = minim
+                	if maxim > self.tuplu[1]:
+                        	self.tuplu[1] = maxim
+        print self.name + " intorc la manager" + str(self.tuplu) + "\n"
         self.manager.submitResponse(self, self.tuplu)
    
     def forwardToCluster(self):
-        #print self.name + " forward to " + str(self.reqClusters)
+        print self.name + " forward to " + str(self.reqClusters)
         self.clusterHead.requestNodeToCluster(self, self.reqClusters, self.sensor_type)
         self.manager.notify_req_node2cluster(self, self.clusterHead, self.sensor_type)
         
@@ -117,7 +124,7 @@ class Node(threading.Thread):
 
     def getAggregatedData(self, clusters, sensor_type):
             if (sensor_type != None):
-                    #print "\n" + self.name + "primeste cerere de la manager\n"
+                    print "\n" + self.name + "primeste cerere de la manager, CH e " + self.clusterHead.name + "\n"
                     self.reqClusters = clusters
                     self.sensor_type = sensor_type
                     self.parentIsManager = True
@@ -175,13 +182,7 @@ class ClusterHead(threading.Thread):
     def getClusterHead(self):
         return self
 
-    def receiveResponseFromNode(self, result):
-        self.responseLock.acquire()
-        self.results.append(result)
-        self.responses += 1
-        self.responseLock.release()
-
-    def receiveResponseFromCluster(self, tuplu):
+    def receiveResponse(self, tuplu):
         self.responseLock.acquire()
         self.tuples.append(tuplu)
         self.responses += 1
@@ -204,7 +205,7 @@ class ClusterHead(threading.Thread):
         self.destClusters = self.reqClusters;
         if (self in self.reqClusters):
                 self.destClusters.remove(self)
-        #print self.name + " la clustere " + str(self.destClusters) + "\n"
+        print self.name + " la clustere " + str(self.destClusters) + "\n"
 
         if self.destClusters:
                 for cluster in self.destClusters:
@@ -219,7 +220,7 @@ class ClusterHead(threading.Thread):
                 self.destNodes.remove(self)
             if managerNode != None:
                 self.destNodes.remove(managerNode)
-            #print self.name + " dau la nodurile mele " + str(self.destNodes)
+            print self.name + " dau la nodurile mele " + str(self.destNodes)
             for node in self.destNodes:
                 #apeleaza functia de request pt node
                 node.requestClusterToNode(self, self.sensor_type)
@@ -238,33 +239,24 @@ class ClusterHead(threading.Thread):
                         print self.name + " intoarce sil sil " + str(minim) + "\n"
                 else:   minim = DEFAULT_MIN_VALUE
                         """
-        minim = DEFAULT_MIN_VALUE
-        maxim = minim
-        for result in self.results:
-                if minim == DEFAULT_MIN_VALUE:
-                        minim = result
-                if maxim == DEFAULT_MIN_VALUE:
-                        maxim = result
-                if result > maxim:
-                        maxim = result
-                if result < minim:
-                        minim = result
+	minim = inf 
+        maxim = -inf
+	self.value = (-inf, inf)
         for tuplu in self.tuples:
-                if minim == DEFAULT_MIN_VALUE:
-                        minim = tuplu[0]
-                if maxim == DEFAULT_MIN_VALUE:
-                        maxim = tuplu[1]
-                if tuplu[0] < minim:
-                        minim = tuplu[0]
-                if tuplu[1] > maxim:
-                        maxim = tuplu[1]
-        self.value = (minim, maxim)
+		if (tuplu[1] != inf):
+	        	if tuplu[0] < minim:
+                	       	minim = tuplu[0]
+	               	if tuplu[1] > maxim:
+                	       	maxim = tuplu[1]
+	
+	if (minim != inf):
+		self.value = (minim, maxim)
 
 
     def forwardResponse(self):
-        #print self.name + " intorc " + str(self.value) + "\n"
+        print self.name + " intorc" + str(self.value) + "\n"
         if self.parentIsCluster:
-                self.parent.receiveResponseFromCluster(self.value)
+                self.parent.receiveResponse(self.value)
                 self.manager.notify_resp_cluster2cluster(self, self.parent, self.sensor_type)
                 self.parentIsCluster = False
         if self.parentIsManager:
@@ -318,7 +310,7 @@ class ClusterHead(threading.Thread):
 
     def getAggregatedData(self, clusters, sensor_type):
             if (sensor_type != None):
-                    #print "\n" + self.name + " primesc cerere de la manager\n"
+                    print "\n" + self.name + " primesc cerere de la manager\n"
                     self.reqClusters = clusters
                     self.sensor_type = sensor_type
                     self.parentIsManager = True

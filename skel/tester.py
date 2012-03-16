@@ -222,8 +222,8 @@ class Tester:
     
 if __name__ == "__main__":
     t = Tester()
-    t.test1()
-    t.test2()
-    t.test3()
+    #t.test1()
+    #t.test2()
+    #t.test3()
     t.test4()
 
