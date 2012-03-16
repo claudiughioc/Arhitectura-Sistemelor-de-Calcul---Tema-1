@@ -62,7 +62,6 @@ class Node(threading.Thread):
         self.reqReceived = True
 
     def replyToCluster(self):
-        sensor = self.sensors[self.sensor_type]
         value = None
         for i in self.sensors:
                 if i == self.sensor_type:
@@ -94,7 +93,11 @@ class Node(threading.Thread):
         self.name = "Thread " + str(self.nodeID)
         while (1):
                 if (self.reqReceived == True):
-                        val = self.sensors[self.sensor_type].getValue()
+			if (self.sensor_type != None):
+				default = None
+				sens = self.sensors.get(self.sensor_type, default)
+				if sens != None:
+					val = sens.getValue()
                         #print self.name + " MAMA " + str(self.sensors[self.sensor_type].getValue()) + "\n"
                         if self.parentIsManager == True:
                                 self.forwardToCluster()
@@ -206,7 +209,6 @@ class ClusterHead(threading.Thread):
         if self.destClusters:
                 for cluster in self.destClusters:
                         #apeleaza functia de request pt respectivul cluster
-                        val = self.sensors[self.sensor_type].getValue()
                         cluster.requestClusterToCluster(self, self.sensor_type)
                         self.manager.notify_req_cluster2cluster(self, cluster, self.sensor_type)
         
@@ -282,7 +284,11 @@ class ClusterHead(threading.Thread):
         while (1):
                 if self.reqReceived == True:
                         # Decide how to forward to own nodes
-                        val = self.sensors[self.sensor_type].getValue()
+			if (self.sensor_type != None):
+				default = None
+				sens = self.sensors.get(self.sensor_type, default)
+				if sens != None:
+					val = sens.getValue()
                         #print self.name + " MAMA " + str(self.sensors[self.sensor_type].getValue()) + "\n"
                         if self in self.reqClusters:
                                 if self.parentIsNode == True:
