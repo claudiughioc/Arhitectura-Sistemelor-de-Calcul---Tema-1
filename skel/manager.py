@@ -133,14 +133,18 @@ class Manager:
         #reinitialize test related variables
         self.__initVar()
 
+        self.waitRegister = threading.Semaphore()
         self.waitPhase = threading.Semaphore()
 
         #start nodes
         for node in self.nodes:
             node.start()
 
+        #wait for all nodes to register
+        for node in self.nodes:
+            self.waitRegister.acquire()
+
         for i in range(len(phases)):
-            print "PHASE", i
             if DEBUG:
                 print "PHASE", i
                 for req in phases[i]:
@@ -267,6 +271,8 @@ class Manager:
         if len(errorString):    
             self.tester.error("Error registering node:\n"+errorString)
 
+        self.waitRegister.release()
+
         if DEBUG:
             self.printLock.acquire()
             print "Registered node", node.getNodeID(), node
@@ -293,6 +299,8 @@ class Manager:
 
         if len(errorString):    
             self.tester.error("Error registering cluster head node:"+errorString)
+
+        self.waitRegister.release()
 
         if DEBUG:
             self.printLock.acquire()
