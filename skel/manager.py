@@ -145,6 +145,7 @@ class Manager:
             self.waitRegister.acquire()
 
         for i in range(len(phases)):
+            print "____________PHASE", i
             if DEBUG:
                 print "PHASE", i
                 for req in phases[i]:
@@ -162,7 +163,9 @@ class Manager:
             self.numResponses = 0
             
             for req in requests:
+                #print "Request catre " + str(req[0]) + " cu clustere " + str(req[1]) + "\n"
                 req[0].getAggregatedData(req[1], req[2])
+                #print "Request dupa iesire " + str(req[0]) + " cu clustere " + str(req[1]) + "\n"
 
             activatedThreads = 0
             for req in requests:
@@ -172,13 +175,15 @@ class Manager:
                     activatedThreads += 1
                     if req[0].getClusterHead() != req[0]:
                         activatedThreads += 1
-
+            #print "\n\n\n\nRequests inainte de bariera " + str(requests) + "\n\n\n\n\n"
             # wait for results
             while self.numResponses < len(requests): 
                 continue
+            #print "\n\n\n\nRequests dupa bariera " + str(requests) + "\n\n\n\n\n"
             
             # verify results
             errorString = ""
+            #print "____________Getting correct results for END of phase", i
             testResults =   self.getCorrectResults(self.clusters, requests) 
             results = self.recvResults 
             if len(results) == len(testResults):
@@ -188,7 +193,7 @@ class Manager:
                             continue
                         else:
                             errorString = "Incorrect results (%f,%f) instead of (%f,%f)" % (results[node][0],
-                                                        results[node][1], testResults[node][0], testResults[node][1])
+                                                        results[node][1], testResults[node][0], testResults[node][1]) + str(results)
                             break
                     else: 
                         errorString = "Invalid data structure type for results, it must be 'tuple' not %s" % type(results[node])
@@ -237,12 +242,14 @@ class Manager:
         for req in requests:
             minValue = float("inf")
             maxValue = float("-inf")
+            #print "Correct results: node " + str(req[0]) + " a trimis la " + str(req[1]) + "\n"
             for cluster in req[1]:
                 nodes = cluster.getClusterNodes()
                 for node in nodes:
                     for sensor in node.getSensors():
                         if sensor.getType() == req[2]:
                             value = sensor.getValue()
+                            #print node.name + " val corecta " + str(value) + "\n"
                             if value < minValue: minValue = value
                             if value > maxValue: maxValue = value
                             break
