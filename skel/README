@@ -1,0 +1,27 @@
+GHIOC CONSTANTIN CLAUDIU 331CB
+TEMA 1 - ASC
+                AGREGAREA IN RETELE DE SENZORI
+
+1.      CERINTE
+        Realizarea unei agregari periodice intr-o retea de senzori. Nodurile sunt ideale, nefiind nevoie de strategii de detectie si tolerarea defectelor. In timpul unui text nu exista churn. Reteaua este compusa din Nodes si ClusterHeads. Fiecare componenta contine minim un sensor care ofera valori pentru agregare.
+
+2.      UTILIZARE
+        Pentru testare: python tester.py. Durata de executie a testerului este foarte mare, pentru toate testele ajungand la 30 minute pe Intel(R) Core(TM) i3-2310M CPU @ 2.10GHz.
+
+3.      IMPLEMENTARE
+        Descrierea clasei Node: 
+                La primirea unei cereri de la un manager prin getAggregatedData, un node verifica parametrii sa fie diferiti de None (in caz contrar opreste threadul), copie lista de clustere intr-o lista proprie, copie tipul de sensor si modifica un flag pentru a semnala in run acest eveniment. Flagul folosit de mine este reqReceived. Acelasi flag este setat pe True daca un nod primeste un request de date de la un clusterhead. De asemenea un node contine doua variabile care indica tipul de parinte al nodului, pentru a diferentia intre cereri. Astfel, la primirea unei cereri:
+                a.      daca parintele este Manager se face forward la cerere (se apeleaza o functie din clusterheadul nodului curent) cu lista de clustere primita de la manager si se asteapta cat timp nu a primit un raspuns. La primirea raspunsului, se raspunde managerului.
+                b.      daca parintele este clusterhead se contruieste un tuplu care este (-inf, inf) daca nodul nu are niciun sensor de tipul cerut sau (val, val), unde val este valoarea intoarsa de senzor. Acest tuplu este intors clusterheadului parinte, intr-o lista sincronizata.
+
+        Descrierea clasei ClusterHead:
+                La primirea unei cereri (de la manager, node, sau alt clusterhead) se semnaleaza acest lucru printr-un flag, se retine in variabile diferita tipul parintelui si se copie eventuala lista de clustere la care se da forward. In run, daca s-a semnalat o cerere:
+                a.      daca parintele este node sau manager si clusterul curent se afla in lista de clustere din cerere, se trimit cereri la nodurile proprii ale clusterului curent (se apeleaza functii request din clasa Node); daca parintele clusterului curent este un cluster, totdeauna se va da forward la request catre nodurile proprii. Forward la request se va face catre alte clustere in cazul in care parintele clusterului curent este node sau manager. Dupa trimiterea de cereri la node si clustere, se asteapta raspunsuri de la ele intr-o bucla while care ruleaza pana cand numarul de raspunsuri este egal cu suma dimensiunilor listelor de noduri si clustere la care s-a trimis requesturi. Dupa primirea rezultatelor sub forma de tupluri si adaugarea lor in lista, se apeleaza functia aggregateResults care formeaza un singur tuplu, incluzand si valoarea proprie a clusterhead-ului, in cazul in care acesta este cuprins in lista de clustere. Dupa obtinerea tuplului final se trimite rezultatul parintelui.
+
+        Atat in Node cat si in ClusterHead, dupa primirea unei cereri si rezolvarea ei se reinitializeaza toate variabilele si listele si se apeleaza functia nextPhase() din manager. Cand unul dintre aceste obiecte primeste o cerere cu lista ce clustere si tipul de senzor egale cu "None" se intrerupe rularea threadului.
+
+        Lista de rezultate dintr-un ClusterHead a fost sincronizata cu un lock astfel incat accesul si adaugarea in ea sa se faca de catre un singur thread la un moment dat.
+
+
+4.      CONTINUTUL ARHIVEI
+        Arhiva contine fisierul node.py si fisierul README
